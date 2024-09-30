@@ -44,27 +44,22 @@
 
 
 
-layout(set = 1, binding = 0)  buffer BSortBuffer {
+layout(std430, binding = 0) buffer BSortBuffer {
     uint b_sort[];
 };
-
-layout(set = 1, binding = 2)  buffer BAltBuffer {
+layout(std430, binding = 1) buffer BAltBuffer {
     uint b_alt[];
 };
-
-layout(set = 1, binding = 1)  buffer BGlobalHist {
+layout(std430, binding = 2) buffer BGlobalHist {
     uint b_globalHist[1024];
 };
-
-layout(set = 1, binding = 3) coherent buffer BIndex {
+layout(std430, binding = 3) coherent buffer BIndex {
     uint b_index[4];
 };
-
-layout(set = 1, binding = 4) coherent buffer BPassHist {
+layout(std430, binding = 4) coherent buffer BPassHist {
     uvec4 b_passHist[];
 };
-
-layout(push_constant) uniform Params{
+layout(std430, binding = 5) buffer BMeta {
     uint pass_num;
     uint radix_shift;
     uint n;
@@ -113,7 +108,7 @@ uint getLaneMaskLt() {
     return mask;
 }
 
-void k_DigitBinning(uint zheyuan_block_id, uint logical_blocks){
+void k_DigitBinning(uint block_id, uint logical_blocks){
 
     // clear shared memory
     for(uint i = gl_LocalInvocationID.x; i < BIN_HISTS_SIZE; i += gl_WorkGroupSize.x){
@@ -316,7 +311,7 @@ void k_DigitBinning(uint zheyuan_block_id, uint logical_blocks){
 
 void main(){
     uint logical_blocks = uint(ceil(float(n) / float(BIN_PART_SIZE)));
-    for (uint zheyuan_block_id = gl_WorkGroupID.x; zheyuan_block_id < logical_blocks; zheyuan_block_id += gl_NumWorkGroups.x){
-        k_DigitBinning(zheyuan_block_id, logical_blocks);
+    for (uint block_id = gl_WorkGroupID.x; block_id < logical_blocks; block_id += gl_NumWorkGroups.x){
+        k_DigitBinning(block_id, logical_blocks);
     }
 }
