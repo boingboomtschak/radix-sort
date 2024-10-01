@@ -29,7 +29,7 @@ namespace onesweep {
             d_data.store(data, data_size);
         }
 
-        const auto binnig_thread_blocks = (len + 7680 - 1) / 7680;
+        const auto binning_thread_blocks = (len + 7680 - 1) / 7680;
 
         easyvk::Buffer d_sorted = easyvk::Buffer(device, len * sizeof(uint32_t), true);
         easyvk::Buffer d_hist = easyvk::Buffer(device, 1024 * sizeof(uint32_t), true);
@@ -39,7 +39,7 @@ namespace onesweep {
         d_meta.store(&len, sizeof(uint32_t), 0, 2 * sizeof(uint32_t));
         easyvk::Buffer d_index = easyvk::Buffer(device, 4 * sizeof(uint32_t), true);
         d_index.clear();
-        easyvk::Buffer d_pass_hist = easyvk::Buffer(device, (uint64_t)(binnig_thread_blocks * 256.0 * 4) * sizeof(uint32_t), true); // pass hist size = len / BIN_PART_SIZE * local_hist_bins
+        easyvk::Buffer d_pass_hist = easyvk::Buffer(device, (uint64_t)(binning_thread_blocks * 256.0 * 4) * sizeof(uint32_t), true); // pass hist size = len / BIN_PART_SIZE * local_hist_bins
         d_pass_hist.clear();
 
         // read/set up shaders

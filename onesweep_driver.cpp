@@ -38,6 +38,7 @@ int main() {
     Device device = Device(instance, devices[d]);
     printf("Using '%s'...\n\n", device.properties.deviceName);
 
+    uint64_t len = DATA_SIZE /sizeof(uint32_t);
     std::vector<uint32_t> data(DATA_SIZE / sizeof(uint32_t));
     srand(time(NULL));
     std::generate(data.begin(), data.end(), std::rand);
@@ -50,10 +51,20 @@ int main() {
     onesweep::onesweep(device, data.data(), data.size());
 
     printf("Sorted data: ");
-    for (size_t i = 0; i < 100; i++) {
+    for (size_t i = 0; i < 25; i++) {
         printf("%u ", data[i]);
     }
     printf("\n\n");
+
+    bool sorted = true;
+    for (size_t i = 0; i < len - 1; i++) {
+        if (data[i] > data[i+1])
+            sorted = false;
+    }
+    if (sorted)
+        printf("Data is sorted!\n");
+    else
+        printf("Data is not sorted...\n");
 
     device.teardown();
     instance.teardown();
