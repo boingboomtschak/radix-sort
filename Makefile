@@ -5,7 +5,7 @@ ifeq ($(OS), Windows_NT)
 endif
 
 %.spv: %.comp
-	glslc --target-env=vulkan1.1 $< -o $@
+	glslangValidator --target-env vulkan1.1 $< -o $@
 
 all: easyvk/build/easyvk.o onesweep.o onesweep_driver.cpp
 	$(CXX) $(CXXFLAGS) -lvulkan -Ieasyvk/src easyvk/volk/volk.c easyvk/build/easyvk.o onesweep.o onesweep_driver.cpp -o onesweep_driver.$(RUN_EXT)
