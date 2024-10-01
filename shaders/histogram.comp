@@ -56,7 +56,7 @@ uint InclusiveWarpScanCircularShift(uint val){
     return subgroupShuffle(val, gl_SubgroupInvocationID + LANE_MASK & LANE_MASK);
 }
 
-void k_GlobalHistogram(uint block_id, uint logical_blocks){
+void k_GlobalHistogram(){
     for (uint i = gl_LocalInvocationID.x; i < RADIX_BIN * 2; i += gl_WorkGroupSize.x){
         s_globalHistFirst[i] = 0;
         s_globalHistSec[i] = 0;
@@ -70,9 +70,9 @@ void k_GlobalHistogram(uint block_id, uint logical_blocks){
     {
         uint segmentIndex = gl_LocalInvocationID.x / 64 * RADIX_BIN;
 
-        if (block_id < logical_blocks - 1){
-            const uint partEnd = (block_id + 1) * G_HIST_VEC_SIZE;
-            for (uint i = gl_LocalInvocationID.x + (block_id * G_HIST_VEC_SIZE); i < partEnd; i += gl_WorkGroupSize.x){
+        if (gl_WorkGroupID.x < gl_NumWorkGroups.x - 1){
+            const uint partEnd = (gl_WorkGroupID.x + 1) * G_HIST_VEC_SIZE;
+            for (uint i = gl_LocalInvocationID.x + (gl_WorkGroupID.x * G_HIST_VEC_SIZE); i < partEnd; i += gl_WorkGroupSize.x){
                 const uvec4 t = uvec4(b_sort[i*4], b_sort[i*4 + 1], b_sort[i*4 + 2], b_sort[i*4 + 3]);
 
                 atomicAdd(s_globalHistFirst[segmentIndex + ((t.x) & 0xFF)], 1);
@@ -98,8 +98,8 @@ void k_GlobalHistogram(uint block_id, uint logical_blocks){
             }
         }
         
-        if (block_id == logical_blocks - 1){
-            for (uint i = gl_LocalInvocationID.x + (block_id * G_HIST_PART_SIZE); i < n; i += gl_WorkGroupSize.x){
+        if (gl_WorkGroupID.x == gl_NumWorkGroups.x - 1){
+            for (uint i = gl_LocalInvocationID.x + (gl_WorkGroupID.x * G_HIST_PART_SIZE); i < n; i += gl_WorkGroupSize.x){
                 uint t = b_sort[i];
                 atomicAdd(s_globalHistFirst[segmentIndex + ((t) & 0xFF)], 1);
                 atomicAdd(s_globalHistSec[segmentIndex + ((t >> 8) & 0xFF)], 1);
@@ -151,8 +151,9 @@ void k_GlobalHistogram(uint block_id, uint logical_blocks){
 }
 
 void main() {
-    uint logical_blocks = uint(ceil(float(n) / float(G_HIST_PART_SIZE)));
-    for (uint block_id = gl_WorkGroupID.x; block_id < logical_blocks; block_id += gl_NumWorkGroups.x){
-        k_GlobalHistogram(block_id, logical_blocks);
-    }
+    // uint logical_blocks = uint(ceil(float(n) / float(G_HIST_PART_SIZE)));
+    // for (uint block_id = gl_WorkGroupID.x; block_id < logical_blocks; block_id += gl_NumWorkGroups.x){
+    //     k_GlobalHistogram(block_id, logical_blocks);
+    // }
+    k_GlobalHistogram();
 }

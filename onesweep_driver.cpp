@@ -6,7 +6,7 @@
 #include "onesweep.h"
 
 #define USE_VALIDATION_LAYERS true
-#define DATA_SIZE 1llu << 31
+#define DATA_SIZE 1000
 
 using namespace easyvk;
 using namespace onesweep;
@@ -39,16 +39,19 @@ int main() {
     printf("Using '%s'...\n\n", device.properties.deviceName);
 
     std::vector<uint32_t> data(DATA_SIZE / sizeof(uint32_t));
+    size_t len = DATA_SIZE / sizeof(uint32_t);
     srand(time(NULL));
-    std::generate(data.begin(), data.end(), std::rand);
-
+    // std::generate(data.begin(), data.end(), std::rand);
+    for (size_t i= len-1 ; i > 0; i--) {
+        data[i] = len - i;
+    }
     printf("Unsorted data: ");
     for (size_t i = 0; i < 100; i++) {
         printf("%u ", data[i]);
     }
     printf("\n\n");
 
-    onesweep::onesweep(device, data.data(), data.size());
+    onesweep::onesweep(device, data.data(), len);
 
     printf("Sorted data: ");
     for (size_t i = 0; i < 100; i++) {
