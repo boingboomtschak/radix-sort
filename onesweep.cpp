@@ -29,6 +29,8 @@ namespace onesweep {
             d_data.store(data, data_size);
         }
 
+        const auto binnig_thread_blocks = (len + 7680 - 1) / 7680;
+
         easyvk::Buffer d_sorted = easyvk::Buffer(device, len * sizeof(uint32_t), true);
         easyvk::Buffer d_hist = easyvk::Buffer(device, 1024 * sizeof(uint32_t), true);
         d_hist.clear();
@@ -37,20 +39,20 @@ namespace onesweep {
         d_meta.store(&len, sizeof(uint32_t), 0, 2 * sizeof(uint32_t));
         easyvk::Buffer d_index = easyvk::Buffer(device, 4 * sizeof(uint32_t), true);
         d_index.clear();
-        easyvk::Buffer d_pass_hist = easyvk::Buffer(device, (uint64_t)ceil(len / 7680.0 * 256.0 * 4) * sizeof(uint32_t), true); // pass hist size = len / BIN_PART_SIZE * local_hist_bins
+        easyvk::Buffer d_pass_hist = easyvk::Buffer(device, (uint64_t)(binnig_thread_blocks * 256.0 * 4) * sizeof(uint32_t), true); // pass hist size = len / BIN_PART_SIZE * local_hist_bins
         d_pass_hist.clear();
 
         // read/set up shaders
         std::vector<uint32_t> histogramSpv = read_spirv("shaders/histogram.spv");
         std::vector<easyvk::Buffer> histogramBufs = {d_data, d_hist, d_meta};
         easyvk::Program histogramProgram = easyvk::Program(device, histogramSpv, histogramBufs);
-        histogramProgram.setWorkgroups(len / 65536); // # workgroups = (len / G_HIST_PART_SIZE)
+        histogramProgram.setWorkgroups((len +65536 - 1)/ 65536); // # workgroups = (len / G_HIST_PART_SIZE)
         histogramProgram.initialize("main");
 
         std::vector<uint32_t> onesweepSpv = read_spirv("shaders/onesweep.spv");
         std::vector<easyvk::Buffer> onesweepBufs = {d_data, d_sorted, d_hist, d_index, d_pass_hist, d_meta};
         easyvk::Program onesweepProgram = easyvk::Program(device, onesweepSpv, onesweepBufs);
-        onesweepProgram.setWorkgroups(len / 7680); // # workgroups = (len / BIN_PART_SIZE)
+        onesweepProgram.setWorkgroups((len + 7680 -1) / 7680); // # workgroups = (len / BIN_PART_SIZE)
         onesweepProgram.initialize("main");
 
         // execute histogram pass

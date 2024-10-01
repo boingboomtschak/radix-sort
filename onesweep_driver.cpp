@@ -41,7 +41,6 @@ int main() {
     std::vector<uint32_t> data(DATA_SIZE / sizeof(uint32_t));
     srand(time(NULL));
     std::generate(data.begin(), data.end(), std::rand);
-
     printf("Unsorted data: ");
     for (size_t i = 0; i < 100; i++) {
         printf("%u ", data[i]);
