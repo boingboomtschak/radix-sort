@@ -1,4 +1,5 @@
 .vscode/
+shaders/*.spv
 
 *.o
 *.exe

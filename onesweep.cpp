@@ -37,7 +37,7 @@ namespace onesweep {
         d_meta.store(&len, sizeof(uint32_t), 0, 2 * sizeof(uint32_t));
         easyvk::Buffer d_index = easyvk::Buffer(device, 4 * sizeof(uint32_t), true);
         d_index.clear();
-        easyvk::Buffer d_pass_hist = easyvk::Buffer(device, (uint64_t)ceil(len / 7680.0 * 256.0) * sizeof(uint32_t), true); // pass hist size = len / BIN_PART_SIZE * local_hist_bins
+        easyvk::Buffer d_pass_hist = easyvk::Buffer(device, (uint64_t)ceil(len / 7680.0 * 256.0 * 4) * sizeof(uint32_t), true); // pass hist size = len / BIN_PART_SIZE * local_hist_bins
         d_pass_hist.clear();
 
         // read/set up shaders
@@ -85,7 +85,7 @@ namespace onesweep {
         float bin4_runtime = onesweepProgram.runWithDispatchTiming();
 
         // copy sorted buffer back to CPU buffer
-        d_sorted.load(data, data_size);
+        d_data.load(data, data_size);
 
         float total_runtime = hist_runtime + bin1_runtime + bin2_runtime + bin3_runtime + bin4_runtime;
         printf("Shader           | Runtime (%% total)\n");
