@@ -1,5 +1,6 @@
 #include <vector>
 #include <cmath>
+#include <ctime>
 #include "easyvk.h"
 
 namespace onesweep {
