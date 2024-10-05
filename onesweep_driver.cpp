@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <format>
 #include <algorithm>
 #include "easyvk.h"
 #include "onesweep.h"
@@ -100,17 +99,18 @@ int main() {
             return 1;
         }
         
-        string hist = std::format("{:3.4f}ms ({:>2.2f}%)", perf.hist, perf.hist / perf.total * 100.0);
-        string bin1 = std::format("{:3.4f}ms ({:>2.2f}%)", perf.bin1, perf.bin1 / perf.total * 100.0);
-        string bin2 = std::format("{:3.4f}ms ({:>2.2f}%)", perf.bin2, perf.bin2 / perf.total * 100.0);
-        string bin3 = std::format("{:3.4f}ms ({:>2.2f}%)", perf.bin3, perf.bin3 / perf.total * 100.0);
+        char hist[32], bin1[32], bin2[32], bin3[32];
+        snprintf(hist, 32, "%3.4fms (%2.2f%%)", perf.hist, perf.hist / perf.total * 100.0);
+        snprintf(bin1, 32, "%3.4fms (%2.2f%%)", perf.bin1, perf.bin1 / perf.total * 100.0);
+        snprintf(bin2, 32, "%3.4fms (%2.2f%%)", perf.bin2, perf.bin2 / perf.total * 100.0);
+        snprintf(bin3, 32, "%3.4fms (%2.2f%%)", perf.bin3, perf.bin3 / perf.total * 100.0);
 
         printf("%-11lu | %-19s | %-19s | %-19s | %-19s | %3.4fms\n",
             data_size, 
-            hist.c_str(),
-            bin1.c_str(),
-            bin2.c_str(),
-            bin3.c_str(),
+            hist,
+            bin1,
+            bin2,
+            bin3,
             perf.total
         );
     }
