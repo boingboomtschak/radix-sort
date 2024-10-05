@@ -12,7 +12,7 @@ namespace onesweep {
         return ret;
     }
 
-    void onesweep(easyvk::Device device, uint32_t* data, uint64_t len) {
+    OnesweepPerfStats onesweep(easyvk::Device device, uint32_t* data, uint64_t len) {
         // copy data to GPU
         easyvk::Buffer d_data = easyvk::Buffer(device, len * sizeof(uint32_t), true);
         uint64_t data_size = len * sizeof(uint32_t);
@@ -86,18 +86,10 @@ namespace onesweep {
         d_meta.store(&radix_shift, sizeof(uint32_t), 0, sizeof(uint32_t));
         float bin4_runtime = onesweepProgram.runWithDispatchTiming();
 
+        float total_runtime = hist_runtime + bin1_runtime + bin2_runtime + bin3_runtime + bin4_runtime;
+
         // copy sorted buffer back to CPU buffer
         d_data.load(data, data_size);
-
-        float total_runtime = hist_runtime + bin1_runtime + bin2_runtime + bin3_runtime + bin4_runtime;
-        printf("Shader           | Runtime (%% total)\n");
-        printf("-------------------------------------\n");
-        printf("Global histogram | %fms (%.2f%%)\n", hist_runtime / 1000000.0, hist_runtime / total_runtime * 100.0);
-        printf("Binning pass 1   | %fms (%.2f%%)\n", bin1_runtime / 1000000.0, bin1_runtime / total_runtime * 100.0);
-        printf("Binning pass 2   | %fms (%.2f%%)\n", bin2_runtime / 1000000.0, bin2_runtime / total_runtime * 100.0);
-        printf("Binning pass 3   | %fms (%.2f%%)\n", bin3_runtime / 1000000.0, bin3_runtime / total_runtime * 100.0);
-        printf("Binning pass 4   | %fms (%.2f%%)\n", bin4_runtime / 1000000.0, bin4_runtime / total_runtime * 100.0);
-        printf("\n");
 
         // deallocate
         histogramProgram.teardown();
@@ -108,5 +100,13 @@ namespace onesweep {
         d_meta.teardown();
         d_index.teardown();
         d_pass_hist.teardown();
+
+        return OnesweepPerfStats {
+            .hist = hist_runtime / 1000000.0f,
+            .bin1 = bin1_runtime / 1000000.0f,
+            .bin2 = bin2_runtime / 1000000.0f,
+            .bin3 = bin3_runtime / 1000000.0f,
+            .total = total_runtime / 1000000.0f
+        };
     }
 }

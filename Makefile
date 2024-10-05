@@ -1,4 +1,4 @@
-CXXFLAGS=-std=c++17
+CXXFLAGS=-std=c++20
 RUN_EXT=run
 ifeq ($(OS), Windows_NT)
 	RUN_EXT = exe

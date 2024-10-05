@@ -6,43 +6,37 @@
 #extension GL_KHR_shader_subgroup_shuffle_relative : enable
 #extension GL_KHR_shader_subgroup_shuffle : enable
 
-//#define input_size 2000000
-
 #define RADIX_BIN 256
 #define RADIX_LOG 8
 #define RADIX_BITS 8
 #define RADIX_MASK 255 // Mask of digit bins
-#define RADIX_PASS 4//(sizeof(uint) * 8 + RADIX_BITS - 1) / RADIX_BITS
+#define RADIX_PASS 4   // (sizeof(uint) * 8 + RADIX_BITS - 1) / RADIX_BITS
 
-#define LANE_COUNT 32 // number of threads in a subgroup
+#define LANE_COUNT 32 // Number of threads in a subgroup
 #define LANE_MASK 31
 #define LANE_LOG 5
 
-#define LANE gl_LocalInvocationID.x // the idx of thread in the subgroup
-#define SUBGROUP_IDX  gl_SubgroupID // the idx of subgroup the thread belongs to might be wrong
-#define SUBGROUP_THREAD_IDX gl_GlobalInvocationID.x //(LANE + (SUBGROUP_IDX << LANE_LOG)) // the subgroup relative thread idx                                 
-
+#define LANE gl_LocalInvocationID.x                 // The idx of thread in the subgroup
+#define SUBGROUP_IDX  gl_SubgroupID                 // The idx of subgroup the thread belongs to
+#define SUBGROUP_THREAD_IDX gl_GlobalInvocationID.x // (LANE + (SUBGROUP_IDX << LANE_LOG)) // the subgroup relative thread idx                                 
 
 //For the binning
-#define BIN_PART_SIZE       7680    //The partition tile size of a BinningPass threadblock
-#define BIN_HISTS_SIZE      4096    //The total size of all subgroup histograms in shared memory
-#define BIN_THREADS         512     //The number of threads in a BinningPass threadblock
-#define BIN_SUB_PART_SIZE   480     //The subpartition tile size of a single subgroup in a BinningPass threadblock
-#define BIN_SUBGROUPS       16       //The number of subgroup in a BinningPass threadblock previously 16
-#define BIN_KEYS_PER_THREAD 15      //The number of keys per thread in BinningPass threadblock previously 15
+#define BIN_PART_SIZE       7680    // The partition tile size of a BinningPass threadblock
+#define BIN_HISTS_SIZE      4096    // The total size of all subgroup histograms in shared memory
+#define BIN_THREADS         512     // The number of threads in a BinningPass threadblock
+#define BIN_SUB_PART_SIZE   480     // The subpartition tile size of a single subgroup in a BinningPass threadblock
+#define BIN_SUBGROUPS       16      // The number of subgroup in a BinningPass threadblock previously 16
+#define BIN_KEYS_PER_THREAD 15      // The number of keys per thread in BinningPass threadblock previously 15
 
-#define BIN_PARTITIONS     (n / BIN_PART_SIZE)             //The number of partition tiles in a BinningPass
-#define BIN_SUB_PART_START (SUBGROUP_IDX * BIN_SUB_PART_SIZE)     //The starting offset of a subpartition tile
-#define BIN_PART_START     (partitionIndex * BIN_PART_SIZE)     //The starting offset of a partition tile
-#define BIN_THREAD_BLOCKS  (n + BIN_PART_SIZE - 1) / BIN_PART_SIZE
+#define BIN_PARTITIONS     (n / BIN_PART_SIZE)                     // The number of partition tiles in a BinningPass
+#define BIN_SUB_PART_START (SUBGROUP_IDX * BIN_SUB_PART_SIZE)      // The starting offset of a subpartition tile
+#define BIN_PART_START     (partitionIndex * BIN_PART_SIZE)        // The starting offset of a partition tile
+#define BIN_THREAD_BLOCKS  (n + BIN_PART_SIZE - 1) / BIN_PART_SIZE 
 
-
-#define FLAG_NOT_READY      0       //Flag value inidicating neither inclusive sum, or aggregate sum of a partition tile is ready
-#define FLAG_AGGREGATE      1       //Flag value indicating aggregate sum of a partition tile is ready
-#define FLAG_INCLUSIVE      2       //Flag value indicating inclusive sum of a partition tile is ready
-#define FLAG_MASK           3       //Mask used to retrieve flag values
-
-
+#define FLAG_NOT_READY      0       // Flag value inidicating neither inclusive sum, or aggregate sum of a partition tile is ready
+#define FLAG_AGGREGATE      1       // Flag value indicating aggregate sum of a partition tile is ready
+#define FLAG_INCLUSIVE      2       // Flag value indicating inclusive sum of a partition tile is ready
+#define FLAG_MASK           3       // Mask used to retrieve flag values
 
 layout(std430, binding = 0) buffer BSortBuffer {
     uint b_sort[];
@@ -64,15 +58,10 @@ layout(std430, binding = 5) buffer BMeta {
     uint radix_shift;
     uint n;
 };
-
-
-
 layout(local_size_x = 512) in;
 
 shared uint s_subgroupHistograms[BIN_PART_SIZE];
 shared uint s_localHistograms[RADIX_BIN];
-
-
 
 uint InclusiveWarpScanCircularShift(uint val){
     for (uint i = 1; i <= (LANE_COUNT >> 1); i <<= 1){
@@ -98,24 +87,21 @@ uint ActiveExclusiveWarpScan(uint val) {
 uint getLaneMaskLt() {
     uint laneId = gl_SubgroupInvocationID;
     uint mask = 0;
-
     // Generate the mask dynamically based on the current laneId
     // For each bit position less than laneId, set the corresponding bit in mask
     for (uint i = 0; i < laneId; ++i) {
         mask |= (1u << i);
     }
-
     return mask;
 }
 
-void k_DigitBinning(){
-
-    // clear shared memory
+void main(){
+    // Zero out shared memory
     for(uint i = gl_LocalInvocationID.x; i < BIN_HISTS_SIZE; i += gl_WorkGroupSize.x){
         s_subgroupHistograms[i] = 0;
     }
 
-    // assign partition tiles
+    // Assign partition tiles
     if (gl_LocalInvocationID.x == 0)
         s_subgroupHistograms[BIN_PART_SIZE - 1] = atomicAdd(b_index[radix_shift >> 3], 1);
     groupMemoryBarrier();
@@ -123,14 +109,13 @@ void k_DigitBinning(){
 
     const uint partitionIndex = s_subgroupHistograms[BIN_PART_SIZE - 1];
 
-    // load global histogram into shared memory
+    // Load global histogram into shared memory
     if (gl_LocalInvocationID.x < RADIX_BIN)
         s_localHistograms[gl_LocalInvocationID.x] = b_globalHist[gl_LocalInvocationID.x + (radix_shift << 5)];
     
-    
-    // handle size that is not prect multiple of parition size
+    // Handle sizes that are not perfect multiple of parition size
     if (partitionIndex < gl_NumWorkGroups.x -1){
-        // load the keys
+        // Load the keys
         uint keys[BIN_KEYS_PER_THREAD];
         for (uint i = 0, t = gl_SubgroupInvocationID + BIN_SUB_PART_START + BIN_PART_START; i < BIN_KEYS_PER_THREAD; i++, t += LANE_COUNT){
             keys[i] = pass_num % 2 == 0 ? b_sort[t] : b_alt[t];
@@ -138,7 +123,7 @@ void k_DigitBinning(){
 
         uint _offsets[BIN_KEYS_PER_THREAD];
         
-        // warp level mutli-split
+        // Warp-level multi-split
         for (uint i = 0; i < BIN_KEYS_PER_THREAD; ++i){
             uint warpFlags = 0xFFFFFFFF;
             for (int k = 0; k < RADIX_LOG; ++k){
@@ -148,7 +133,7 @@ void k_DigitBinning(){
 
             // Number of peers having same digit as key[i]
             // maybe it is wrong?
-            const uint bits = subgroupBallotExclusiveBitCount(uvec4(warpFlags,0,0,0));//bitCount(warpFlags & getLaneMaskLt());
+            const uint bits = subgroupBallotExclusiveBitCount(uvec4(warpFlags,0,0,0)); //bitCount(warpFlags & getLaneMaskLt());
 
             uint prev;
             if (bits == 0)
@@ -160,16 +145,15 @@ void k_DigitBinning(){
         groupMemoryBarrier();
         barrier();
 
-        // exclusive prefix scan up the  warp histograms
+        // Exclusive prefix scan on the warp histograms
         if (gl_LocalInvocationID.x < RADIX_BIN){
             uint reduction = s_subgroupHistograms[gl_LocalInvocationID.x];
             for (uint i = gl_LocalInvocationID.x +  RADIX_BIN; i < BIN_HISTS_SIZE; i += RADIX_BIN){
                 reduction += s_subgroupHistograms[i];
                 s_subgroupHistograms[i] = reduction - s_subgroupHistograms[i];
             }
-            //uint val = ((partitionIndex > 0) ? FLAG_AGGREGATE : FLAG_INCLUSIVE) | reduction << 2;
             atomicAdd(b_passHist[gl_LocalInvocationID.x* gl_NumWorkGroups.x + partitionIndex][pass_num],((partitionIndex > 0) ? FLAG_AGGREGATE : FLAG_INCLUSIVE) | (reduction << 2));
-            // exclusive prefix sum across reduction
+            // Exclusive prefix sum across reduction
             s_subgroupHistograms[gl_LocalInvocationID.x] = InclusiveWarpScanCircularShift(reduction);
         }
         groupMemoryBarrier();
@@ -185,7 +169,7 @@ void k_DigitBinning(){
         groupMemoryBarrier();
         barrier();
 
-        // update offsets
+        // Update offsets
         if (gl_SubgroupID > 0){
             for (uint i = 0; i < BIN_KEYS_PER_THREAD; ++i){
                 const uint t2 = keys[i] >> radix_shift & RADIX_MASK;
@@ -197,7 +181,7 @@ void k_DigitBinning(){
             }
         }
 
-        // split the warps into single thread cooperative groups and lookback
+        // Split the warps into single thread cooperative groups and lookback
         if (gl_LocalInvocationID.x < RADIX_BIN){
             if (partitionIndex > 0){
                 uint reduction = 0;
@@ -225,29 +209,27 @@ void k_DigitBinning(){
         groupMemoryBarrier();
         barrier();
 
-        //scatter keys into shared memory
+        // Scatter keys into shared memory
         for (uint i = 0; i < BIN_KEYS_PER_THREAD; ++i){
             s_subgroupHistograms[_offsets[i]] = keys[i];
         }
         groupMemoryBarrier();
         barrier();
 
-        // scatter keys into device memory
+        // Scatter keys into device memory
         for (uint i = gl_LocalInvocationID.x; i < BIN_PART_SIZE; i += gl_WorkGroupSize.x){
            pass_num % 2 == 0 ? b_alt[s_localHistograms[s_subgroupHistograms[i] >> radix_shift & RADIX_MASK] + i] = s_subgroupHistograms[i] : b_sort[s_localHistograms[s_subgroupHistograms[i] >> radix_shift & RADIX_MASK] + i] = s_subgroupHistograms[i];
         }
         
     }
     
-
-    
-    // process final partition
+    // Process final partition
     if (partitionIndex == gl_NumWorkGroups.x - 1){
         groupMemoryBarrier();
         barrier();
 
         if (partitionIndex > 0){
-            // lookback
+            // Lookback
             if(gl_LocalInvocationID.x < RADIX_BIN){
                 uint reduction = 0;    
                 for (int k = int(partitionIndex); k > 0;){
@@ -269,7 +251,6 @@ void k_DigitBinning(){
             groupMemoryBarrier();
             barrier();
         }
-    
         
         const uint partEnd = BIN_PART_START + BIN_PART_SIZE;
         for (uint i = gl_LocalInvocationID.x + BIN_PART_START; i < partEnd; i += gl_WorkGroupSize.x){
@@ -304,15 +285,4 @@ void k_DigitBinning(){
         }
         
     }
-    
-    
-}
-
-
-void main(){
-    // uint logical_blocks = uint(ceil(float(n) / float(BIN_PART_SIZE)));
-    // for (uint block_id = gl_WorkGroupID.x; block_id < logical_blocks; block_id += gl_NumWorkGroups.x){
-        // k_DigitBinning(block_id, logical_blocks);
-    // }
-    k_DigitBinning();
 }
