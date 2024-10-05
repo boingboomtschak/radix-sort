@@ -20,7 +20,6 @@
 #define SUBGROUP_IDX  gl_SubgroupID                 // The idx of subgroup the thread belongs to
 #define SUBGROUP_THREAD_IDX gl_GlobalInvocationID.x // (LANE + (SUBGROUP_IDX << LANE_LOG)) // the subgroup relative thread idx                                 
 
-//For the binning
 #define BIN_PART_SIZE       7680    // The partition tile size of a BinningPass threadblock
 #define BIN_HISTS_SIZE      4096    // The total size of all subgroup histograms in shared memory
 #define BIN_THREADS         512     // The number of threads in a BinningPass threadblock
