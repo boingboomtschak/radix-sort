@@ -9,6 +9,7 @@ namespace onesweep {
         float bin1;
         float bin2;
         float bin3;
+        float bin4;
         float total;
     };
 

@@ -4,3 +4,5 @@ shaders/*.spv
 *.o
 *.exe
 *.run
+*.sortperf
+*.png

@@ -106,6 +106,7 @@ namespace onesweep {
             .bin1 = bin1_runtime / 1000000.0f,
             .bin2 = bin2_runtime / 1000000.0f,
             .bin3 = bin3_runtime / 1000000.0f,
+            .bin4 = bin4_runtime / 1000000.0f,
             .total = total_runtime / 1000000.0f
         };
     }
